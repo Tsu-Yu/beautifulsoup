@@ -150,3 +150,4 @@ htmlcov/
 .DS_Store
 # big samples
 samples/large.html
+samples/sample.html
