@@ -122,3 +122,31 @@ dmypy.json
 # Emacs files
 *~
 \#*\#
+
+
+# venv / conda
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
+
+# test and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# editors
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+# big samples
+samples/large.html
