@@ -129,6 +129,12 @@ from bs4._warnings import (
     XMLParsedAsHTMLWarning,
 )
 
+# replacer: "Optional[SoupReplacer]" = None 的註解就不會在執行期造成循環匯入
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .replacer import SoupReplacer
+
+
 
 class BeautifulSoup(Tag):
     """A data structure representing a parsed HTML or XML document.
@@ -215,6 +221,7 @@ class BeautifulSoup(Tag):
         from_encoding: Optional[_Encoding] = None,
         exclude_encodings: Optional[_Encodings] = None,
         element_classes: Optional[Dict[Type[PageElement], Type[PageElement]]] = None,
+        replacer: "Optional[SoupReplacer]" = None,
         **kwargs: Any,
     ):
         """Constructor.
@@ -435,6 +442,7 @@ class BeautifulSoup(Tag):
         self.known_xml = self.is_xml
         self._namespaces = dict()
         self.parse_only = parse_only
+        self.replacer = replacer
 
         if hasattr(markup, "read"):  # It's a file-type object.
             markup = markup.read()
