@@ -497,6 +497,27 @@ class BeautifulSoup(Tag):
         self.markup = None
         self.builder.soup = None
 
+    def _apply_replacer(self, tag) -> None:
+        """Apply SoupReplacer during parsing in the order:
+        name_xformer -> attrs_xformer -> xformer.
+        Falls back to legacy maybe() if transform() doesn't exist.
+        """
+        r = getattr(self, "replacer", None)
+        if not r:
+            return
+
+        # Preferred M3 path
+        if hasattr(r, "transform"):
+            r.transform(tag)
+            return
+
+        # Backward-compatible M2 path
+        if hasattr(r, "maybe"):
+            new_name = r.maybe(tag.name)
+            if isinstance(new_name, str) and new_name and new_name != tag.name:
+                tag.name = new_name
+
+
     def copy_self(self) -> "BeautifulSoup":
         """Create a new BeautifulSoup object with the same TreeBuilder,
         but not associated with any markup.
@@ -1052,23 +1073,41 @@ class BeautifulSoup(Tag):
         )
         if tag is None:
             return tag
+    
+        # >>> NEW: apply replacer at parse-time, after name/attrs are set
+        self._apply_replacer(tag)
+        # <<<
+
+
         if self._most_recent_element is not None:
             self._most_recent_element.next_element = tag
         self._most_recent_element = tag
         self.pushTag(tag)
         return tag
 
+    # def handle_endtag(self, name: str, nsprefix: Optional[str] = None) -> None:
+    #     """Called by the tree builder when an ending tag is encountered.
+
+    #     :param name: Name of the tag.
+    #     :param nsprefix: Namespace prefix for the tag.
+
+    #     :meta private:
+    #     """
+    #     # print("End tag: " + name)
+    #     self.endData()
+    #     self._popToTag(name, nsprefix)
     def handle_endtag(self, name: str, nsprefix: Optional[str] = None) -> None:
-        """Called by the tree builder when an ending tag is encountered.
-
-        :param name: Name of the tag.
-        :param nsprefix: Namespace prefix for the tag.
-
-        :meta private:
-        """
-        # print("End tag: " + name)
         self.endData()
-        self._popToTag(name, nsprefix)
+
+        name_to_pop = name
+        if self.currentTag is not None:
+            # 先讓 xformer 能看到完整內容（文字/子節點都已入樹）
+            self._apply_replacer(self.currentTag)
+            # 若開始標籤被改名了，這裡用改名後的實際名稱來 pop
+            name_to_pop = self.currentTag.name
+
+        self._popToTag(name_to_pop, nsprefix)
+
 
     def handle_data(self, data: str) -> None:
         """Called by the tree builder when a chunk of textual data is
@@ -1149,6 +1188,26 @@ class BeautifulSoup(Tag):
         return prefix + super(BeautifulSoup, self).decode(
             indent_level, eventual_encoding, formatter, iterator
         )
+    
+    # milestione 4
+    def __iter__(self):
+        """
+        Iterate over the entire parse tree starting from this BeautifulSoup
+        object, yielding one node at a time.
+
+        This uses an explicit stack to do a depth-first traversal so we do not
+        materialize all nodes into a list first (which the assignment forbids).
+        """
+        stack = [self]
+        while stack:
+            node = stack.pop()
+            yield node
+
+            # 只有 Tag 會有 children / contents，要往下展開
+            if isinstance(node, Tag):
+                # reversed() 為了讓最左邊的 child 先被訪問（pre-order DFS）
+                for child in reversed(node.contents):
+                    stack.append(child)
 
 
 # Aliases to make it easier to get started quickly, e.g. 'from bs4 import _soup'

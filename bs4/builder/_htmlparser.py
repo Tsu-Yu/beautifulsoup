@@ -110,9 +110,13 @@ class BeautifulSoupHTMLParser(HTMLParser, DetectsXMLParsedAsHTML):
 
     # ------------------ SoupReplacer hook ------------------
     def _map_name(self, name: str) -> str:
-        """Return possibly-replaced tag name if a SoupReplacer is attached."""
-        rp = getattr(self.soup, "replacer", None)
-        return rp.maybe(name) if rp else name
+        """Return raw tag name; transformations happen after Tag is built."""
+        # OLD:
+        # rp = getattr(self.soup, "replacer", None)
+        # return rp.maybe(name) if rp else name
+
+        # NEW: do NOT call replacer here
+        return name
     # -------------------------------------------------------
 
     def error(self, message: str) -> None:
